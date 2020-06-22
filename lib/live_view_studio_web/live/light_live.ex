@@ -7,6 +7,9 @@ defmodule LiveViewStudioWeb.LightLive do
     socket = assign(socket, :brightness, 10)
     # if we had multiple key/value pairs, we could pass in a
     # keyword list.
+    # IO.inspect(socket)
+    # what does the socket struct *look* like? Let's inspect!
+
     {:ok, socket}
 
     # the above will often be inline'd, but we're leaving it the way
@@ -16,4 +19,67 @@ defmodule LiveViewStudioWeb.LightLive do
     # {:ok, assigns(socket, :brightness, 10)}
     # https://elixir-lang.org/getting-started/basic-types.html#tuples
   end
+
+  def render(assigns) do
+    # needs to return some rendered content
+    ~L"""
+      <h1>Front porch light</h1>
+      <div id="light">
+        <div class="meter">
+          <span style="width: <%= @brightness %>%">
+            <%= @brightness %>%
+          </span>
+        </div>
+        <button phx-click="off">
+          <img src="images/light-off.svg">
+        </button>
+
+        <button phx-click="down">
+          <img src="images/down.svg">
+        </button>
+
+        <button phx-click="up">
+          <img src="images/up.svg">
+        </button>
+
+        <button phx-click="on">
+          <img src="images/light-on.svg">
+        </button>
+
+      </div>
+    """
+  end
+
+  # the phx-click attribute is what LiveView calls a binding; this one
+  # is binding a click event to the button an off event is sent via the
+  # websocket to the LightLive process.
+
+  # the second element is meta data we don't care about just now, so
+  # we'll ignore it for now
+  def handle_event("on", _, socket) do
+    socket = assign(socket, :brightness, 100)
+    {:noreply, socket}
+  end
+
+  def handle_event("up", _, socket) do
+    # because we want to bump the brightness each time the button is
+    # clicked, we need to get the current brightness value
+    socket = update(socket, :brightness, &(&1 + 10))
+    {:noreply, socket}
+  end
+
+  def handle_event("off", _, socket) do
+    socket = assign(socket, :brightness, 0)
+    {:noreply, socket}
+  end
+
+  def handle_event("down", _, socket) do
+    socket = update(socket, :brightness, &(&1 - 10))
+    {:noreply, socket}
+  end
+
+  # whenever a liveview state changes, the render function is automatically
+  # called to render a new view with the updated state. LiveView only sends
+  # the *changes* to the client over the websocket
+
 end
