@@ -96,7 +96,7 @@ defmodule LiveViewStudioWeb.SearchLive do
         loading: true
       )
 
-      {:noreply, socket}
+    {:noreply, socket}
   end
 
   # this is the handl_info module before re-writing it to account for
@@ -110,7 +110,7 @@ defmodule LiveViewStudioWeb.SearchLive do
   #     {:noreply, socket}
   # end
 
-  def handle_event({:run_zip_zearch, zip}, socket) do
+  def handle_info({:run_zip_search, zip}, socket) do
     case Stores.search_by_zip(zip) do
       [] ->
         socket =
