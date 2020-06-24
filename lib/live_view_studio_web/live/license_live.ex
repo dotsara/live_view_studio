@@ -5,8 +5,20 @@ defmodule LiveViewStudioWeb.LicenseLive do
   import Number.Currency
 
   def mount(_params, _session, socket) do
-    socket = assign(socket, seats: 2, amount: Licenses.calculate(2))
+    if connected?(socket) do
+      :timer.send_interval(1000, self(), :tick)
+    end
+
+    expiration_time = Timex.shift(Timex.now(), hours: 1)
+
+    socket = assign(socket,
+                    seats: 2,
+                    amount: Licenses.calculate(2),
+                    expiration_time: expiration_time,
+                    time_remaining: time_remaining(expiration_time)
+              )
     {:ok, socket}
+
   end
 
   def render(assigns) do
@@ -31,17 +43,33 @@ defmodule LiveViewStudioWeb.LicenseLive do
           <div class="amount">
             <%= number_to_currency(@amount) %>
           </div>
+
+          <div class="countdown" style="margin-top: 1rem;">
+            <b>Time left to buy!</b><br/>
+            <%= @time_remaining %>
+          </div>
         </div>
       </div>
     </div>
     """
   end
 
-  # we'll use the second parameter in the list!
-  # it's a map that has metadata about the event including any form parameters
   def handle_event("update", %{"seats" => seats}, socket) do
     seats = String.to_integer(seats)
     socket = assign(socket, seats: seats, amount: Licenses.calculate(seats))
     {:noreply, socket}
+  end
+
+  def handle_info(:tick, socket) do
+    expiration_time = socket.assigns.expiration_time
+    socket = assign(socket, time_remaining: time_remaining(expiration_time))
+    {:noreply, socket}
+  end
+
+  defp time_remaining(expiration_time) do
+    Timex.Interval.new(from: Timex.now(), until: expiration_time)
+    |> Timex.Interval.duration(:seconds)
+    |> Timex.Duration.from_seconds()
+    |> Timex.format_duration(:humanized)
   end
 end
