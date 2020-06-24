@@ -4,14 +4,14 @@ defmodule LiveViewStudioWeb.SalesDashboardLive do
   alias LiveViewStudio.Sales
 
   def mount(_params, _session, socket) do
-    # we want the liveview process to send a message to itself every
-    # second to update with assign_stats.
-    # but! since mount is invoked twice, we want to wait until there's
-    # a connection before we send the message.
+    socket =
+      socket
+      |> assign_stats()
+      |> assign(refresh: 1)
+
     if connected?(socket) do
-      :timer.send_interval(1000, self(), :tick)
+      schedule_refresh(socket)
     end
-    socket = assign_stats(socket)
     {:ok, socket}
   end
 
@@ -49,7 +49,23 @@ defmodule LiveViewStudioWeb.SalesDashboardLive do
         <img src="images/refresh.svg">
         Refresh
       </button>
-    </div>
+
+      <form phx-change="select-refresh">
+        <label for="refresh">
+          Refresh every:
+        </label>
+
+        <select name="refresh">
+          <%= options_for_select(refresh_options(), @refresh) %>
+        </select>
+
+        <button phx-click="refresh">
+          <img src="images/refresh.svg">
+          Refresh
+        </button>
+
+      </form>
+      </div>
     """
   end
 
@@ -58,17 +74,26 @@ defmodule LiveViewStudioWeb.SalesDashboardLive do
     {:noreply, socket}
   end
 
-  # while user (external) events are handled with handle_event
-  # internal messages are handled by handle_info callbacks
-  def handle_info(:tick, socket) do
-    socket = assign_stats(socket)
+  def handle_event("select-refresh", %{"refresh" => refresh}, socket) do
+    refresh = String.to_integer(refresh)
+    socket = assign(socket, refresh: refresh)
     {:noreply, socket}
   end
 
-  # to update the stats we need to update using the same code that
-  # we already had in mount. So, instead of repeating, we make a new
-  # private function and then call *it* from the other 2 places
-  # (mount & refresh handle_event)
+  def handle_info(:tick, socket) do
+    socket = assign_stats(socket)
+    schedule_refresh(socket)
+    {:noreply, socket}
+  end
+
+  defp refresh_options do
+    [{"1s", 1}, {"5s", 5}, {"15s", 15}, {"30s", 30}, {"60s", 60}]
+  end
+
+  defp schedule_refresh(socket) do
+    Process.send_after(self(), :tick, socket.assigns.refresh * 1000)
+  end
+
   defp assign_stats(socket) do
     assign(socket,
       new_orders: Sales.new_orders(),
